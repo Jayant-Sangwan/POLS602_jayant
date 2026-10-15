@@ -1,0 +1,466 @@
+---
+title: 'Problem Set 1: POLS 602'
+author: "Jayant Sangwan"
+date: "2026-10-14"
+output:
+  html_document:
+    df_print: paged
+---
+```{r,  include = FALSE}
+library(ggplot2)
+```
+
+# Problem 1:Why does the sample variance divide by $n−1$?
+
+#### a. 
+I have wrtten the following function that will produce the 4 quantities of interest. 
+```{r}
+pset1_a <- function(X) {
+  sample_var <- var(X)
+  sample_sd <- sd(X)
+  
+# Writing the formula with n instead of n-1, referring them here as pop_.. . 
+  x_bar = mean(X, na.rm= TRUE)
+  SSE = sum((X-x_bar)^2)
+  n <- length(X)
+  pop_var <- ((SSE)/n)
+  pop_sd <- sqrt(pop_var)
+  
+  results <- c("Sample Variance" = sample_var, "Sample SD" = sample_sd, "Population Formula Variance" = pop_var, "Population Formula SD" = pop_sd)
+  
+  return(results)
+}
+
+# 10 observations 
+
+set.seed(616161)
+X <- rnorm(10,0,2)
+
+ans_a <- pset1_a(X)
+print(ans_a)
+```
+The estimates of both are biased. It might be due to small sample size.
+
+```{r}
+
+```
+
+
+#### b.
+
+To set up for the simulations on the 5 observation, i have used a for loop and produced the required plot. 
+
+```{r}
+set.seed(616161)
+n <-5
+sims <-1000
+
+sim_storage <- matrix(NA, nrow=sims, ncol = 4)
+
+for (i in 1:sims) {
+  X <- rnorm(n, 0, 2)
+  sim_output <- pset1_a(X)
+  sim_storage[i, ] <- sim_output
+}
+
+results_df <- as.data.frame(sim_storage)
+colnames(results_df) <- c("Sample_Variance", "Sample_SD", "Pop_Variance", "Pop_SD")
+
+# Plotting the values 
+
+true_var <- 4
+
+mean_sample <- mean(results_df$Sample_Variance)
+mean_pop    <- mean(results_df$Pop_Variance)
+
+
+ggplot(results_df) +
+  geom_density(aes(x = Sample_Variance, fill = "Sample Variance (using n-1)"), alpha = 0.3) +
+  geom_density(aes(x = Pop_Variance, fill = "Population Formula (using n)"), alpha = 0.3) +
+  
+  geom_vline(xintercept = 4, color = "black", linewidth = 1) +
+  geom_vline(xintercept = mean_pop, color = "salmon", linewidth = 1, linetype = "dashed") +
+  geom_vline(xintercept = mean_sample, color = "royalblue", linewidth = 1, linetype = "dashed") +
+  
+  labs(
+    title = "Sampling Distributions of Variance Estimators (n = 5)",
+    subtitle = "Solid line = True Variance (4) | Dashed lines = Estimator Means",
+    x = "Variance Estimate",
+    y = "Density", 
+    fill = "Estimator",
+  )+
+  theme_minimal()+
+  theme(
+  plot.title = element_text(hjust = 0.5, face="bold"),
+  plot.subtitle = element_text(hjust = 0.5), 
+)
+
+print(mean_pop)
+
+```
+"The population variance estimator (dividing by $n$) is biased downward (or negatively biased). It systematically underestimates the true variance in small samples because $\text{Bias} \approx 3.1 - 4.0 = -0.9$."
+
+#### c.
+
+Now we have to see how this bias changes with increasing sample sizes, for this I have added a loop to loop around the function for different sample sizes.
+
+```{r}
+set.seed(61616)
+
+sample_sizes <- c(3, 5, 10, 30, 100)
+sims         <- 1000
+true_var     <- 4
+sims_storage_c <- matrix(NA, nrow = length(sample_sizes), ncol = 3)
+colnames(sims_storage_c) <- c("Sample_Size", "Bias_Sample_Var", "Bias_Pop_Var")
+
+ticker <- 1
+
+
+for (n in sample_sizes) {
+  
+    sim_storage <- matrix(NA, nrow = sims, ncol = 4)
+  
+  for (i in 1:sims) {
+    X <- rnorm(n, mean = 0, sd = 2)
+    sim_output <- pset1_a(X)
+    sim_storage[i, ] <- sim_output
+  }
+  
+  bias_sample <- mean(sim_storage[, 1]) - true_var # 1 demnotes the column for sample formula variance
+  bias_pop    <- mean(sim_storage[, 3]) - true_var # 3 denotes teh column for populatoin formula variance
+  
+  sims_storage_c[ticker, 1] <- n
+  sims_storage_c[ticker, 2] <- bias_sample
+  sims_storage_c[ticker, 3] <- bias_pop
+  
+  ticker <- ticker + 1
+}
+
+results_c <- as.data.frame(sims_storage_c)
+ 
+# plot 
+
+ggplot(results_c, aes(x = Sample_Size)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black", linewidth = 0.8) +
+ #n-1
+     geom_line(aes(y = Bias_Sample_Var, color = "Sample Var (n-1)"), linewidth = 1) +
+  geom_point(aes(y = Bias_Sample_Var, color = "Sample Var (n-1)"), size = 2.5) +
+#n
+    geom_line(aes(y = Bias_Pop_Var, color = "Pop Formula (n)"), linewidth = 1) +
+  geom_point(aes(y = Bias_Pop_Var, color = "Pop Formula (n)"), size = 2.5) +
+  
+  scale_color_manual(
+    values = c("Sample Var (n-1)" = "royalblue", "Pop Formula (n)" = "salmon")
+  ) +
+  
+  labs(
+    title = "Estimator Bias across Sample Sizes",
+    subtitle = "Dashed line at 0 indicates an unbiased estimator",
+    x = "Sample Size (n)",
+    y = "Bias (Mean Estimate - True Parameter)",
+    color = "Estimator"
+  ) +
+  
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5),
+    legend.position = "bottom"
+  )
+
+```
+
+We can see that the Sample Formula works way better than using the population formula especially in samller samples. As the sample size increases they bothstart to converge in terms of their bias. which we want to be near 0 to call that estimator unbiased. As the N reaches 100 both have simmilar biases but still the sample formula works better than the population formula. 
+
+#### d.
+
+Now we have to make similar simulation but calculate the bias in terms of standard errors. 
+
+```{r}
+set.seed(616161)
+
+sample_sizes <- c(3, 5, 10, 30, 100)
+sims         <- 1000
+true_sd     <- 2
+sims_storage_d <- matrix(NA, nrow = length(sample_sizes), ncol = 3)
+colnames(sims_storage_d) <- c("Sample_Size", "Bias_Sample_SD", "Bias_Pop_SD")
+
+ticker <- 1
+
+
+for (n in sample_sizes) {
+  
+    sim_storage <- matrix(NA, nrow = sims, ncol = 4)
+  
+  for (i in 1:sims) {
+    X <- rnorm(n, mean = 0, sd = 2)
+    sim_output <- pset1_a(X)
+    sim_storage[i, ] <- sim_output
+  }
+  
+  bias_sample <- mean(sim_storage[, 2]) - true_sd # 2 denotes the column for sample sd
+  bias_pop    <- mean(sim_storage[, 4]) - true_sd # 4 denotes the column for populatoin formula sd
+  
+  sims_storage_d[ticker, 1] <- n
+  sims_storage_d[ticker, 2] <- bias_sample
+  sims_storage_d[ticker, 3] <- bias_pop
+  
+  ticker <- ticker + 1
+}
+
+results_d <- as.data.frame(sims_storage_d)
+ 
+# plot 
+
+ggplot(results_d, aes(x = Sample_Size)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black", linewidth = 0.8) +
+ #n-1
+     geom_line(aes(y = Bias_Sample_SD, color = "Sample Formula (n-1)"), linewidth = 1) +
+  geom_point(aes(y = Bias_Sample_SD, color = "Sample Formula (n-1)"), size = 2.5) +
+#n
+    geom_line(aes(y = Bias_Pop_SD, color = "Pop Formula (n)"), linewidth = 1) +
+  geom_point(aes(y = Bias_Pop_SD, color = "Pop Formula (n)"), size = 2.5) +
+  
+  scale_color_manual(
+    values = c("Sample Formula (n-1)" = "royalblue", "Pop Formula (n)" = "salmon")
+  ) +
+  
+  # 5. Labels and Titles
+  labs(
+    title = "Estimator Bias across Sample Sizes",
+    subtitle = "Dashed line at 0 indicates an unbiased estimator",
+    x = "Sample Size (n)",
+    y = "Bias (Mean Estimate - True Parameter)",
+    color = "Estimator"
+  ) +
+  
+  # 6. Styling
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5),
+    legend.position = "bottom"
+  )
+```
+
+We can see a similar trend here as well, overall the $n-1$ forumal is less biased than the $n$ formala, especially in smaller samples, however as the numeber of observations increase we can see they both start ot become less and less unbiased. At 100 observations the bias in standard deviation for both estimators are really close to 0, however, the $n-1$ formla is still slightly less biased than the $n$ formula even at 100 observation sample size 
+
+#### e.
+
+Plotting the distribtion of the Standard deviations form the two estimators with $n=5$
+```{r}
+mean_pop_sd = mean(results_df$Pop_SD)
+mean_sample_sd=mean(results_df$Sample_SD)
+ggplot(results_df) +
+  geom_density(aes(x = Sample_SD, fill = "Sample Standard Deviation (using n-1)"), alpha = 0.3) +
+  geom_density(aes(x = Pop_SD, fill = "Population Formula (using n)"), alpha = 0.3) +
+  
+  geom_vline(xintercept = 2, color = "black", linewidth = 1) +
+  geom_vline(xintercept = mean_pop_sd, color = "salmon", linewidth = 1, linetype = "dashed") +
+  geom_vline(xintercept = mean_sample_sd, color = "royalblue", linewidth = 1, linetype = "dashed") +
+  
+  labs(
+    title = "Sampling Distributions of Standard Deviation Estimators (n = 5)",
+    subtitle = "Solid line = True Standard Deviation (2) \nDashed lines = Estimator Means",
+    x = "Standard Deviation Estimate",
+    y = "Density", 
+    fill = "Estimator",
+  )+
+  theme_minimal()+
+  theme(
+  plot.title = element_text(hjust = 0.6, face="bold"),
+  plot.subtitle = element_text(hjust = 0.6), 
+  legend.position = "bottom",
+)
+
+var_sample_sd <- var(results_df$Sample_SD)
+var_pop_sd <- var(results_df$Pop_SD)
+
+
+print(var_sample_sd)
+print(var_pop_sd)
+```
+
+Now here we see that the variance of the estiamtor that uses $n$ is smaller than the estimator that uses $n-1$ in its estimation, this is also evident in the plot wher the red distribution is slightly narrower and taller than the blue one. However, we can also see in the plot that the $n$ estimator is more biased than the $n-1$ estimator as it is farther away from the true value of standard deviation (2). Thus even though it is more precise in its estimate , it is simultaneously more biased.
+
+# Problem 2 : Omitted Variable Bias 
+
+Defining the function: 
+
+```{r}
+pset1_q2 <- function(n,b0,b1,b2,rho) {
+  z <- rnorm (n, 0, 1) 
+  u <- rnorm(n, 0, 1)
+  x <- rho*z + sqrt(1-((rho)^2))*u
+  y <- b0 + b1*x +b2*z + rnorm(n, 0, 1)
+   dataset <- data.frame("z" = z, "x" = x, "y" = y )
+  return (data_a = dataset)
+}
+  
+```
+
+#### a. 
+
+Generating a data set with 100 observations
+
+```{r, message=FALSE}
+set.seed(61616)
+n <-100
+b0 <- 1
+b1<- 2
+b2 <- 3
+rho <- 0.5
+
+q2_a <- pset1_q2(n, b0, b1, b2, rho)
+  
+
+ggplot(data = q2_a, aes(x = x)) +
+  geom_histogram(aes(y = after_stat(density)), color = "white", fill = "coral4", alpha = 0.7) +
+  geom_density(color = "grey30", linewidth = 1)
+
+
+ggplot(data = q2_a, aes(x = z)) +
+  geom_histogram(aes(y = after_stat(density)), color = "white", fill = "coral4", alpha = 0.7) +
+  geom_density(color = "grey30", linewidth = 1)
+
+
+ggplot(data = q2_a, aes(x = y)) +
+  geom_histogram(aes(y = after_stat(density)), color = "white", fill = "coral4", alpha = 0.7) +
+  geom_density(color = "grey30", linewidth = 1)
+
+
+for (i in c("x", "y", "z")) {
+  print(sd(q2_a[[i]]))
+}
+  
+  
+```
+
+Consistent to how we defined it in the function, z looks normally distributed , also the standard deviation is close to 1 as we defined. 
+
+For x we can see that this variable is also normally distributed , with a standard deviation ($\approx 1.04$).
+
+y is a function of both x and z.
+
+
+#### b. 
+Let us fit the model we made above in part a
+
+```{r}
+
+Omitted_ols <- lm(y ~ x, data=q2_a) 
+Full_ols <- lm(y ~ x + z, data=q2_a)
+
+summary(Omitted_ols)
+summary(Full_ols)
+
+ggplot(q2_a, aes(x = x, y = y)) +
+  geom_point(alpha = 0.5, color = "grey30") +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "red", linetype = "dashed") +   # omitted model
+  geom_abline(intercept = coef(Full_ols)[1], 
+              slope     = coef(Full_ols)[2], color = "blue", linetype = "dashed") +  # full model
+  geom_abline(intercept = 1, slope = 2) + # true line from the DGP
+  labs(x = "News consumption (x)", y = "Political knowledge (y)",
+       caption = "Red: y ~ x.  Blue: y ~ x + z (z held at 0).  Dashed: true line.") +
+  theme_minimal()
+          
+
+
+```
+
+We can see here that the estimate for X is way off, or biased , as we know the true vlaues of $\beta_1$ is 2, and here the estimate comes out to be 3.7008. This shows the effect of omitting the variable, it has led us to overestimate or induced an upward bias in our model. We can also see that the standard error of the estimates in this mis-specified model are larger that the correctly specified model.We can also see that the residual standard error of the whole model is larger than the correctly specified model. 
+In the model where we incorporate all the relevant variables, we can see that values fo the estimates are closer to the true value with smaller standard errors.
+
+This can also be seen in th eplot we generated. The plot shows the scatter plot of $x$ and $y$ as we have in the data set we made, the Red line is the best fitting like we get from the model that omits $z$ and the blue line is the best fitting line we get from the full model. We can see their positions relative to the true relationship we set in DGP as the black line. This shows the same story the line we get from the mis-specified model is biased upwards and teh line form the full model is closer to the true DGP.
+
+We see an upward bias here because the correlation between $x$ and $z$ is positive and also the relationship between $y$ and $z$ is is positive as well. We know that the sign of bias here can be given by:
+$$\beta_z\times\frac{s_{x z}}{s^2_x}$$
+These results show how omitting a variable that is correlated to both $x$ and $y$ can induce bias in your estimate, seriously undermining our findings. 
+
+
+
+
+#### c.
+
+Let us now increase the number of observations and see what happens: 
+
+```{r}
+
+set.seed(61616)
+n <-1000
+b0 <- 1
+b1<- 2
+b2 <- 3
+rho <- 0.5
+
+q2_c <- pset1_q2(n, b0, b1, b2, rho)
+
+Omitted_ols_c <- lm(y~x, data=q2_c)
+full_ols_c <- lm(y~x+z, data=q2_c)
+
+summary(Omitted_ols_c)
+summary(full_ols_c)
+
+ggplot(q2_c, aes(x = x, y = y)) +
+  geom_point(alpha = 0.2, color = "grey30") +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "red", linetype = "dashed") +   # omitted model
+  geom_abline(intercept = coef(full_ols_c)[1], 
+              slope     = coef(full_ols_c)[2], color = "blue", linetype = "dashed") +  # full model
+  geom_abline(intercept = 1, slope = 2) + # true line from the DGP
+  labs(x = "News consumption (x)", y = "Political knowledge (y)",
+       caption = "Red: y ~ x.  Blue: y ~ x + z (z held at 0).  Dashed: true line.") +
+  theme_minimal()
+
+
+```
+
+As we can see, even after increasing the number of observations we can see that the bias is still there, $\hat{\beta_1}$ in the model with omitted variable z is still not near the true value of 2 instead it is 3.65905. And on the other hand the correctly specified model shows values of $\hat{\beta_1}$ and $\hat{\beta_2}$ closer to the true values of 2 and 3 respectively.
+
+The only difference change brought about by increasing the number of observations is that the standard errors in both the models are smaller compared to the model estimated on 100 observations. 
+
+We can also see this in the plot that the fully specified model is almost overlapping the true DGP line , however the omitted model still has that upward bias.
+
+Thus increasing the amount of data you have will not solve help make a mis-specified model work better. It will still produce estimates that are biased. 
+
+#### d.
+
+Setting the rho to be 0: 
+
+```{r}
+set.seed(61616)
+n <-1000
+b0 <- 1
+b1<- 2
+b2 <- 3
+rho <- 0
+
+q2_d <- pset1_q2(n, b0, b1, b2, rho)
+
+Omitted_ols_d <- lm(y~x, data=q2_d)
+full_ols_d <- lm(y~x+z, data=q2_d)
+
+summary(Omitted_ols_d)
+summary(full_ols_d)
+
+ggplot(q2_d, aes(x = x, y = y)) +
+  geom_point(alpha = 0.3, color = "grey30") +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "red", linetype = "dashed") +   # omitted model
+  geom_abline(intercept = coef(full_ols_d)[1], 
+              slope     = coef(full_ols_d)[2], color = "blue", linetype = "dashed") +  # full model
+  geom_abline(intercept = 1, slope = 2) + # true line from the DGP
+  labs(x = "News consumption (x)", y = "Political knowledge (y)",
+       caption = "Red: y ~ x.  Blue: y ~ x + z (z held at 0).  Dashed: true line.") +
+  theme_minimal()
+
+```
+
+
+Here when we reduce the correlation between x and z to 0 we can see how that does not produce problems. The value for $\hat{\beta_1}$ in the model that does not include z is near the true value of 2. and the model taht does include z, the values of $\hat{\beta_1}$ and $\hat{\beta_2}$ are close to the true value we specified in the DGP. 
+
+We can see this realize in the graph as well, the best-fitting lines of both the model only includes $x$ and one that includes both $x$ and $z$ are almost overlapping each other.
+
+Thus omitted variable bias only kicks in when we omit a variable that is correlated with both our independent ($x$) and dependent variable ($y$). 
+
+All of these exercises show that when constructing our regression model we should always control for confounding variable, i.e, variables that have an effect on both our independent and dependent variable. 
+
+
